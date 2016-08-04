@@ -64,8 +64,12 @@ parseMsg s = let bs = BS.pack s
 data Options = Options {
     optInput :: IO String
   , optOutput :: String -> IO ()
+  , optVerbose :: Bool
+  , optShowVersion :: Bool
   }
 
+data Flag = Verbose | Version
+            deriving Show
 
 grkDefaultOptions :: Options
 grkDefaultOptions = Options {
@@ -77,7 +81,8 @@ grkDefaultOptions = Options {
 options :: [OptDescr (Options -> IO Options)]
 options =
   [
-    Option ['V'] ["version"] (NoArg showVersion) "show version number"
+    Option ['V','?'] ["version"] (NoArg showVersion) "show version number"
+  , Option ['v']     ["verbose"] (ReqArg setVerbose "") "output on console more chatty"
   , Option ['i'] ["input"] (ReqArg readInput "FILE") "input file to read"
   , Option ['o'] ["output"] (ReqArg writeOutput "FILE") "output file to write"
   ]
@@ -87,17 +92,35 @@ showVersion _ = do
   putStrLn "CommandLine example 0.1"
   exitSuccess
 
+setVerbose arg opt = do
+  putStrLn "set to verbose"
+  return opt
 
 readInput arg opt = return opt { optInput = readFile arg }
 
 writeOutput arg opt = return opt { optOutput = writeFile arg }
 
 
+helpUsage = do
+  putStrLn msg1 where
+  msg1 = "****** Usage ******* \n\
+         \ grkh -V \n\
+         \"
+
+grkDie code = do
+  helpUsage
+  exitWith ( ExitFailure code )
+
 main :: IO ()
 main = do
   args <- getArgs
-  print $ show args
+  -- print $ show args
   --
+  case ( ( getOpt RequireOrder [] ) args ) of
+    ( [], units, [] ) -> print units
+    ( _,    _, errs ) -> print $ "Errors: " ++ show errs
+      --grkDie 255 
+  -- 
   let ( actions, nonOpts, msgs ) = getOpt RequireOrder options args
   if msgs == []
     then do
